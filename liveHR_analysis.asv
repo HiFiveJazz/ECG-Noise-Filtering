@@ -23,8 +23,8 @@ function [new_peak_loc]=liveHR_analysis(ecg_avail,fs,liveBeatStart)
     if ~isempty(liveBeatStart)
         last_processed_sample = liveBeatStart(end);
     end
-    if last_processed_sample > 201
-        new_data_start = last_processed_sample - 200;
+    if last_processed_sample > 101
+        new_data_start = last_processed_sample - 100;
     else
         new_data_start = last_processed_sample + 1;
     end 
@@ -37,7 +37,7 @@ function [new_peak_loc]=liveHR_analysis(ecg_avail,fs,liveBeatStart)
     average_ecg = mean(new_data,2);
     %filteredECG = filter(b, a, ecg);
     filteredbnECG = filter(b, a, average_ecg);
-    window_size = 5; 
+    window_size = 5; % Adjust this value based on your requirements
 
     % Apply the moving average filter
     smoothed_signal = movmean(filteredbnECG, window_size);
@@ -54,7 +54,7 @@ function [new_peak_loc]=liveHR_analysis(ecg_avail,fs,liveBeatStart)
     max_ecg = max(heightECG, [], 'omitnan');
     height = max_ecg;
 
-    %distance = round(fs / (2));
+    distance = round(fs / (2));
 
     % Find peaks
     if length(filteredECG) < 3

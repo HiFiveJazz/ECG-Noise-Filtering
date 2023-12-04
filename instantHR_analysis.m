@@ -14,42 +14,42 @@ function [instantHR,beatStart]=instantHR_analysis(ecg,fs)
 
     % Normalize the cutoff frequencies to the Nyquist frequency
     Wn = [lower_cutoff, upper_cutoff]; 
-    
+
 
     [b, a] = butter(3, Wn);% 3rd order Butterworth bandpass filter normalized to Nyquist frequency (applicable to multiple sampling rates
     average_ecg = mean(ecg,2);
-    filteredECG = filter(b, a, average_ecg);
-    
+    %filteredECG = filter(b, a, ecg);
+    filteredbnECG = filtfilt(b, a, average_ecg);
+    window_size = 5; 
 
-    %filteredECG = ecg;
-    %period = 1/fs;
-    %time = [0:1:length(filteredECG)-1].*period;
+    % Apply the moving average filter
+    smoothed_signal = movmean(filteredbnECG, window_size);
+    filteredECG = (smoothed_signal - min(smoothed_signal)) / (max(smoothed_signal) - min(smoothed_signal));
+    plot(filteredECG)
+
+
     N = length(filteredECG);
     
-    %Normalizing signal from 0 to 1
-    ecgmin = min(filteredECG); ecgmax = max(filteredECG);
-    range = ecgmax-ecgmin;
-    ecgnorm = (filteredECG-ecgmin)/range;
     
-    N_min = min(ecgnorm); N_max = max(ecgnorm); N_range = N_max-N_min;
+    X = fft(filteredbnECG); 
+    freq_resolution = fs / N;
+    mag_spectrum = abs(X);
+    [~, max_index] = max(mag_spectrum);
+    cardiacFreq = (max_index - 1) * freq_resolution;
     
-    
-    X = fft(ecgnorm);
-    freq = (0:N-1)*fs/N;%converting to frequency axis/domain from the time
-    %Only looking at frequencies between 0.5-40 Hz
-    freq = freq(find(freq>=lower_cutoff*(fs/2)));
-    X = X(length(X)-length(freq)+1:end);
-    freq = freq(find(freq<=(upper_cutoff*(fs/2))));
-    X = X(1:length(freq));
-    
-    [peak,index] = max(abs(X)); %finding the biggest peak in frequency spectrum and its index
-    cardiacFreq = freq(index); %the frequency where the biggest peak is located
-    
-    height = 0.6*N_range+N_min;
-    low = -N_max + N_range*0.4;
-    
-    distance = 1/(2*cardiacFreq);   %adding 40% error to the frequency, so we set MinPeakDistance 40% less to capture all important peaks
-    
+    mad_threshold = 1.4 * mad(filteredECG, 1);
+
+    % outliers based on the MAD threshold
+    outliers = abs(filteredECG - median(filteredECG)) > 3 * mad_threshold;
+    heightECG = filteredECG;
+    heightECG(outliers) = NaN;
+
+    % find the max value considering outliers
+    max_ecg = max(heightECG, [], 'omitnan');
+    height = max_ecg;
+    plot(filteredECG)
+    distance = round(fs / (2));
+
     [QRS_Peaks, peakindices] = findpeaks(filteredECG, 'MinPeakHeight', height, 'MinPeakDistance', distance);
     beatStart = peakindices.';
     numPeaks = length(QRS_Peaks);

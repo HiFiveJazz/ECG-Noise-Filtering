@@ -1,7 +1,4 @@
-function [new_peak_loc]=liveHR_analysis(ecg_avail,fs,liveBeatStart)
-% You may delete any of the following lines of code. You may also add as
-% many lines of code as you'd like. 
-    fs = double(fs);
+fs = double(fs);
     lower_cutoff = 0.5/(fs / 2);   
     upper_cutoff = 50/(fs / 2);  
     if upper_cutoff >=1
@@ -23,8 +20,8 @@ function [new_peak_loc]=liveHR_analysis(ecg_avail,fs,liveBeatStart)
     if ~isempty(liveBeatStart)
         last_processed_sample = liveBeatStart(end);
     end
-    if last_processed_sample > 201
-        new_data_start = last_processed_sample - 200;
+    if last_processed_sample > 101
+        new_data_start = last_processed_sample - 100;
     else
         new_data_start = last_processed_sample + 1;
     end 
@@ -37,7 +34,7 @@ function [new_peak_loc]=liveHR_analysis(ecg_avail,fs,liveBeatStart)
     average_ecg = mean(new_data,2);
     %filteredECG = filter(b, a, ecg);
     filteredbnECG = filter(b, a, average_ecg);
-    window_size = 5; 
+    window_size = 5; % Adjust this value based on your requirements
 
     % Apply the moving average filter
     smoothed_signal = movmean(filteredbnECG, window_size);
@@ -89,5 +86,5 @@ function [new_peak_loc]=liveHR_analysis(ecg_avail,fs,liveBeatStart)
         else
             new_peak_loc = stored_locations(1);
         end
+
     end
-end
