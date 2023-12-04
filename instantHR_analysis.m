@@ -19,7 +19,7 @@ function [instantHR,beatStart]=instantHR_analysis(ecg,fs)
     [b, a] = butter(3, Wn);% 3rd order Butterworth bandpass filter normalized to Nyquist frequency (applicable to multiple sampling rates
     average_ecg = mean(ecg,2);
     %filteredECG = filter(b, a, ecg);
-    filteredbnECG = filtfilt(b, a, average_ecg);
+    filteredbnECG = filter(b, a, average_ecg);
     window_size = 5; 
 
     % Apply the moving average filter
