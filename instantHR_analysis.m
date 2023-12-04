@@ -49,13 +49,11 @@ function [instantHR,beatStart]=instantHR_analysis(ecg,fs)
     height = max_ecg;
     plot(filteredECG)
     distance = round(fs / (2));
-
+    
     [QRS_Peaks, peakindices] = findpeaks(filteredECG, 'MinPeakHeight', height, 'MinPeakDistance', distance);
     beatStart = peakindices.';
-    numPeaks = length(QRS_Peaks);
-    for i=1:length(peakindices)-1
-        peak_to_peak_distance(i) = peakindices(i+1)-peakindices(i);
-    end
-    instantHR = floor(60./peak_to_peak_distance);
+
+    intervals = diff(peakindices) / fs; 
+    instantHR = round(60 ./ intervals);
 
 end
