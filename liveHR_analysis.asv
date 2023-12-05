@@ -1,6 +1,25 @@
 function [new_peak_loc]=liveHR_analysis(ecg_avail,fs,liveBeatStart)
-% You may delete any of the following lines of code. You may also add as
-% many lines of code as you'd like. 
+
+    % Initialize
+    new_peak_loc = NaN;
+   
+    last_processed_sample = 0;
+    if ~isempty(liveBeatStart)
+        last_processed_sample = liveBeatStart(end);
+    end
+    if last_processed_sample > (fs/2)+1
+        new_data_start = last_processed_sample - (fs/2);
+    else
+        new_data_start = last_processed_sample + 1;
+    end 
+    if new_data_start > length(ecg_avail)
+        return;
+    end
+
+    % Extract new data for analysis
+    new_data = ecg_avail(new_data_start:end,:);
+    average_ecg = mean(new_data,2);
+
     fs = double(fs);
     lower_cutoff = 0.5/(fs / 2);   
     upper_cutoff = 50/(fs / 2);  
@@ -13,39 +32,27 @@ function [new_peak_loc]=liveHR_analysis(ecg_avail,fs,liveBeatStart)
 
     % Normalize the cutoff frequencies to the Nyquist frequency
     Wn = [lower_cutoff, upper_cutoff]; 
-    [b, a] = butter(3, Wn);
-    
 
-    % Initialize
-    new_peak_loc = NaN;
-   
-    last_processed_sample = 0;
-    if ~isempty(liveBeatStart)
-        last_processed_sample = liveBeatStart(end);
-    end
-    if last_processed_sample > 101
-        new_data_start = last_processed_sample - 100;
-    else
-        new_data_start = last_processed_sample + 1;
-    end 
-    if new_data_start > length(ecg_avail)
-        return;
-    end
 
-    % Extract new data for analysis
-    new_data = ecg_avail(new_data_start:end,:);
-    average_ecg = mean(new_data,2);
-    %filteredECG = filter(b, a, ecg);
+    [b, a] = butter(3, Wn);% 3rd order Butterworth bandpass filter normalized to Nyquist frequency (applicable to multiple sampling rates
     filteredbnECG = filter(b, a, average_ecg);
-    window_size = 5; % Adjust this value based on your requirements
+    diffECG = diff(filteredbnECG);
+
+    % Squaring
+    squaredECG = diffECG .^ 2;
+    window_size = round(0.150 * fs);
 
     % Apply the moving average filter
-    smoothed_signal = movmean(filteredbnECG, window_size);
+    smoothed_signal = movmean(squaredECG, window_size);
     filteredECG = (smoothed_signal - min(smoothed_signal)) / (max(smoothed_signal) - min(smoothed_signal));
+    plot(filteredECG)
 
+
+    N = length(filteredECG);
+    
     mad_threshold = 1.4 * mad(filteredECG, 1);
 
-    % outliers based on MAD threshold
+    % outliers based on the MAD threshold
     outliers = abs(filteredECG - median(filteredECG)) > 3 * mad_threshold;
     heightECG = filteredECG;
     heightECG(outliers) = NaN;
@@ -53,41 +60,28 @@ function [new_peak_loc]=liveHR_analysis(ecg_avail,fs,liveBeatStart)
     % find the max value considering outliers
     max_ecg = max(heightECG, [], 'omitnan');
     height = max_ecg;
+    plot(filteredECG)
+    distance = round(fs/2);
 
-    distance = round(fs / (2));
+    [QRS_Peaks, peakindices] = findpeaks(filteredECG, 'MinPeakHeight', height, 'MinPeakDistance', distance);
 
-    % Find peaks
-    if length(filteredECG) < 3
-        peaks = [0];
-        locs = [0];
+    if ~isempty(peakindices)
+        stored_locations = peakindices + new_data_start - 1;
     else
-        [peaks, locs] = findpeaks(filteredECG, 'MinPeakHeight', height);
+        stored_locations = [];
     end
-
-    if ~isempty(peaks)
-    % Find peaks above the threshold
-    peaks_above_threshold = find(peaks >= height);
-        if ~isempty(peaks_above_threshold)
-            % Adjust and store locations
-            stored_locations = locs(peaks_above_threshold);
-            stored_locations = stored_locations + new_data_start - 1;
+    % Loop through stored locations
+    for i = 1:length(stored_locations)
+    % Check if the current location has been processed or exists in liveBeatStart
+        if last_processed_sample == stored_locations(i) || any(stored_locations(i) == liveBeatStart)
+            continue;
+        elseif any(abs(stored_locations(i) - liveBeatStart) <= )
+        % Check if the stored location is within 50 time points of any last processed samples
+            continue;
         else
-            stored_locations = [];
-        end
-        % Loop through stored locations
-        index_last_processed = find(stored_locations == last_processed_sample);
-        if ~isempty(index_last_processed)
-            for i = index_last_processed:length(stored_locations)
-                if last_processed_sample == stored_locations(i)
-                    continue;
-                else
-            % Set new_peak_loc and break the loop
-                    new_peak_loc = stored_locations(i);
-                    break;
-                end
-            end
-        else
-            new_peak_loc = stored_locations(1);
+        % Set new_peak_loc, update last_processed_sample, and break the loop
+            new_peak_loc = stored_locations(i);
+            break;
         end
     end
 end

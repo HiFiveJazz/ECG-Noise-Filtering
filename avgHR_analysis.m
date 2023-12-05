@@ -25,7 +25,7 @@ function [avgHR]=avgHR_analysis(ecg,fs)
     % Apply the moving average filter
     smoothed_signal = movmean(filteredbnECG, window_size);
     filteredECG = (smoothed_signal - min(smoothed_signal)) / (max(smoothed_signal) - min(smoothed_signal));
-    plot(filteredECG)
+    %plot(filteredECG)
 
 
     N = length(filteredECG);
@@ -57,7 +57,7 @@ function [avgHR]=avgHR_analysis(ecg,fs)
     heartRates = 60 ./ intervals; % Convert to bpm
 
 
-    avgHR = mean(heartRates);  % Compute average heart rate
+    avgHR = round(mean(heartRates));  % Compute average heart rate
 
 
 end

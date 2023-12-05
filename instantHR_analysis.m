@@ -20,22 +20,19 @@ function [instantHR,beatStart]=instantHR_analysis(ecg,fs)
     average_ecg = mean(ecg,2);
     %filteredECG = filter(b, a, ecg);
     filteredbnECG = filter(b, a, average_ecg);
-    window_size = 5; 
+    diffECG = diff(filteredbnECG);
+
+    % Squaring
+    squaredECG = diffECG .^ 2;
+    window_size = round(0.150 * fs);
 
     % Apply the moving average filter
-    smoothed_signal = movmean(filteredbnECG, window_size);
+    smoothed_signal = movmean(squaredECG, window_size);
     filteredECG = (smoothed_signal - min(smoothed_signal)) / (max(smoothed_signal) - min(smoothed_signal));
     plot(filteredECG)
 
 
     N = length(filteredECG);
-    
-    
-    X = fft(filteredbnECG); 
-    freq_resolution = fs / N;
-    mag_spectrum = abs(X);
-    [~, max_index] = max(mag_spectrum);
-    cardiacFreq = (max_index - 1) * freq_resolution;
     
     mad_threshold = 1.4 * mad(filteredECG, 1);
 
@@ -48,12 +45,15 @@ function [instantHR,beatStart]=instantHR_analysis(ecg,fs)
     max_ecg = max(heightECG, [], 'omitnan');
     height = max_ecg;
     plot(filteredECG)
-    distance = round(fs / (2));
-    
+    distance = round(fs/2);
+
     [QRS_Peaks, peakindices] = findpeaks(filteredECG, 'MinPeakHeight', height, 'MinPeakDistance', distance);
     beatStart = peakindices.';
-
+    numPeaks = length(QRS_Peaks);
+   
     intervals = diff(peakindices) / fs; 
     instantHR = round(60 ./ intervals);
+
+    %instantHR = floor(60./peak_to_peak_distance);
 
 end
